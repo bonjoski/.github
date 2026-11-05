@@ -1,0 +1,11 @@
+# .github (Bonjoski Organization)
+
+> Organization-wide community health files, standard security disclosure policies (SECURITY.md), and default workflows for the Bonjoski ecosystem.
+
+## Core Capabilities
+- Centralized Governance: Defines default community health files, issue templates, and pull request guidelines.
+- Standard Security Policy: Maintains organizational `SECURITY.md` for responsible vulnerability disclosure.
+- Ecosystem Profile: Houses public landing page for github.com/bonjoski.
+
+## Documentation
+- Parent Runbook: `docs/knowledge-base/12-spanreed-and-governance.md` in repository `spanreed`
