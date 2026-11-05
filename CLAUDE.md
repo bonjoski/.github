@@ -1,6 +1,5 @@
 # Claude Code Guidelines for `.github`
 
-> **Authoritative Ecosystem Runbook:** [`spanreed/docs/knowledge-base/12-spanreed-and-governance.md`](file:///Users/benskolmoski/code/spanreed/docs/knowledge-base/12-spanreed-and-governance.md)
 
 ## Purpose & Scope
 - Maintains organization profile `README.md` and default `SECURITY.md`.

@@ -4,7 +4,6 @@
 > **Role:** Lead Governance, Security Policy & Community Health Architect  
 > **Ecosystem:** `bonjoski` Sovereign AI Agent Security Toolchain  
 > **Canonical GitHub Description:** *Organization-wide community health files, standard security disclosure policies (SECURITY.md), and default workflows for the Bonjoski ecosystem.*  
-> **Expert Runbook:** [`spanreed/docs/knowledge-base/12-spanreed-and-governance.md`](file:///Users/benskolmoski/code/spanreed/docs/knowledge-base/12-spanreed-and-governance.md)
 
 ---
 

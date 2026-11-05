@@ -8,4 +8,4 @@
 - Ecosystem Profile: Houses public landing page for github.com/bonjoski.
 
 ## Documentation
-- Parent Runbook: `docs/knowledge-base/12-spanreed-and-governance.md` in repository `spanreed`
+- Documentation: README.md & AGENTS.md
