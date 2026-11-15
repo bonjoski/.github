@@ -1,0 +1,25 @@
+name: Organization Governance Check
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [ main, feature/** ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  verify-governance:
+    name: Verify SECURITY.md & Signing Policy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Verify required governance artifacts and PGP key fingerprint
+        run: |
+          set -euo pipefail
+          test -s SECURITY.md
+          test -s README.md
+          grep -Fq "7BB5B44244E586B0" SECURITY.md
