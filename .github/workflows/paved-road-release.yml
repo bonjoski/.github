@@ -194,7 +194,7 @@ jobs:
         if: ${{ inputs.enable_cosign }}
         env:
           ARTIFACT_PATH: ${{ inputs.artifact_path }}
-          REPO_URI: "https://github.com/${{ github.repository }}/"
+          CALLER_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           cosign sign-blob --yes \
@@ -203,7 +203,8 @@ jobs:
           cosign verify-blob \
             --bundle "${ARTIFACT_PATH}.cosign.bundle" \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-            --certificate-identity-regexp "^${REPO_URI}" \
+            --certificate-identity-regexp "^https://github\.com/bonjoski/\.github/\.github/workflows/paved-road-release\.yml@" \
+            --certificate-github-workflow-repository "${CALLER_REPO}" \
             "$ARTIFACT_PATH"
 
       - name: Publish GitHub Release with Verified Receipts
