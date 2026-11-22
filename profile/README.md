@@ -8,27 +8,28 @@
 ## ⚡ 60-Second Quickstart (Zero YAML Required)
 
 ```bash
-# 1. Install the local workstation toolchain
-brew tap bonjoski/tap
-brew install fabrial locksmith argus airlock aegisbox
+# 1. Install the full local workstation toolchain in one command
+brew install bonjoski/tap/paved-road
 
-# 2. Auto-detect your stack & AI SDKs (strictly read-only, 0 YAML written)
-fabrial init
+# 2. Auto-detect your stack & wire IDE MCP servers (dry-run first, then --apply)
+fabrial init --mcp
+fabrial init --mcp --apply
 
 # 3. Move plaintext .env keys into Touch ID / TPM memory & shred .env
 locksmith migrate .env
 
-# 4. Catch AI typosquats before install hooks run
-argus explain opneai --ecosystem npm
+# 4. Start an amortized local session (1 Touch ID prompt, 0ms runtime wrapper hop tax)
+eval "$(fabrial session begin)"
 
-# 5. Run tests & AI agents inside fast local confinement
-fabrial run -- npm test
+# 5. Run the worktree-local PR dry-run & verify signed BLPR-v1 local receipts
+fabrial check --diff --why && fabrial receipt verify
 ```
 
-Every tool follows **UB-CLI-v2**:
+Every tool follows **UB-CLI-v2**, **UB-MCP-v1**, and **BLPR-v1**:
 * **≤3 calm lines by default:** What paused, a validated copy-pasteable `Fix:` command, and a 1-line `Why:`.
 * **Progressive disclosure (`--why`):** Unlock the threat model, CWE/OWASP mapping, and kernel/crypto details whenever you want them.
-* **Agent-native (`--json`):** Deterministic single-line JSON so Claude Code, Cursor, and Antigravity self-heal in one turn without interactive stalls.
+* **Agent-native (`--json` & `UB-MCP-v1`):** Structured `FixForwardError` `structuredContent` + deterministic exit codes (`10`/`20`/`30`/`40`/`82`) and **zero-raw-secret opaque leases** (`locksmith_checkout_lease` → `airlock_exec`/`aegisbox_exec`) so Claude Code, Cursor, and Antigravity self-heal in one turn without ever seeing raw credentials.
+* **Local cryptographic handoffs (`BLPR-v1`):** Standard DSSE / in-toto Statement v1 receipts signed locally via `locksmith` (`fabrial receipt verify`)—zero cloud control plane.
 
 ---
 
