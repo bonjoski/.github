@@ -1,9 +1,10 @@
 name: Paved-Road Receipt-Based Release
 
 # Reusable open-source Stage 4B receipt-based release workflow.
-# Wraps builds with soulcaster (SLSA v1.0 / in-toto provenance) and bomhound
-# (CycloneDX SBOM with legal copyright attribution) and verifies cryptographic
-# digests with standard open-source cosign / slsa-verifier tools.
+# Installs SHA-256-pinned soulcaster & bomhound binaries (fail-closed; zero silent skips),
+# emits SLSA v1.0 / in-toto provenance via soulcaster, generates & enriches CycloneDX SBOMs
+# with legal copyright attribution via bomhound, signs via Sigstore cosign, and optionally
+# publishes a GitHub Release when triggered on a v* tag.
 #
 # Safe Harbor Scope: Single-repository open-source release template using
 # standard OSS tools (SLSA, CycloneDX, Sigstore Cosign). Zero SaaS control plane.
@@ -49,8 +50,8 @@ on:
         required: false
         type: boolean
         default: true
-      enable_slsa_verifier:
-        description: "Run standard open-source slsa-verifier when available on runner"
+      publish_github_release:
+        description: "Publish a GitHub Release with artifact, SHA256, SLSA receipt, CycloneDX SBOM, and cosign bundle"
         required: false
         type: boolean
         default: false
@@ -61,7 +62,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
-      contents: read
+      contents: write
       id-token: write
       attestations: write
     steps:
@@ -71,10 +72,30 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
+      - name: Checkout Paved-Road pinned installer
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: bonjoski/.github
+          path: .paved-road-kit
+          sparse-checkout: |
+            scripts/install_bonjoski_tool.py
+            scripts/pinned-tools.json
+          fetch-depth: 1
+          persist-credentials: false
+
       - name: Setup Go toolchain
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ inputs.go_version }}
+
+      - name: Install SHA-256-verified soulcaster & bomhound (fail-closed)
+        run: |
+          set -euo pipefail
+          python3 .paved-road-kit/scripts/install_bonjoski_tool.py \
+            --manifest .paved-road-kit/scripts/pinned-tools.json \
+            --dest "$HOME/.local/bin" \
+            --github-path \
+            soulcaster bomhound
 
       - name: Verify release commit cryptographic signature
         if: ${{ inputs.verify_git_signature }}
@@ -87,7 +108,7 @@ jobs:
             exit 1
           fi
 
-      - name: Build artifact with soulcaster SLSA v1.0 provenance wrapper
+      - name: Build artifact & emit soulcaster SLSA v1.0 provenance receipt
         env:
           BUILD_COMMAND: ${{ inputs.build_command }}
           ARTIFACT_PATH: ${{ inputs.artifact_path }}
@@ -95,16 +116,13 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$(dirname "$ARTIFACT_PATH")" "$(dirname "$PROVENANCE_PATH")"
-
-          if command -v soulcaster >/dev/null 2>&1; then
-            soulcaster run --output "$PROVENANCE_PATH" -- bash -euo pipefail -c "$BUILD_COMMAND"
-          else
-            bash -euo pipefail -c "$BUILD_COMMAND"
-          fi
-
+          bash -euo pipefail -c "$BUILD_COMMAND"
           test -f "$ARTIFACT_PATH"
           sha256sum "$ARTIFACT_PATH" > "${ARTIFACT_PATH}.sha256"
           cat "${ARTIFACT_PATH}.sha256"
+          soulcaster --version
+          soulcaster receipt --artifact "$ARTIFACT_PATH" --out "$PROVENANCE_PATH"
+          test -s "$PROVENANCE_PATH"
 
       - name: Verify SLSA v1.0 / in-toto provenance & TOCTOU digest integrity
         env:
@@ -112,14 +130,7 @@ jobs:
           PROVENANCE_PATH: ${{ inputs.provenance_path }}
         run: |
           set -euo pipefail
-          # Re-verify artifact digest to detect any post-build tampering.
           sha256sum -c "${ARTIFACT_PATH}.sha256"
-
-          if [ ! -f "$PROVENANCE_PATH" ]; then
-            echo "soulcaster provenance file not emitted locally; relying on GitHub SLSA attestation step."
-            exit 0
-          fi
-
           python3 - "$PROVENANCE_PATH" "$ARTIFACT_PATH" <<'PY'
           import base64, hashlib, json, pathlib, sys
 
@@ -143,28 +154,29 @@ jobs:
 
           if not matched_digest:
               sys.exit(f"Provenance digest mismatch: expected sha256 {actual_sha256}")
-          print(f"Verified SLSA v1.0 provenance and exact SHA-256 digest ({actual_sha256})")
+          print(f"✔ Verified soulcaster SLSA v1.0 provenance and exact SHA-256 digest ({actual_sha256})")
           PY
 
-      - name: Generate and verify CycloneDX SBOM with bomhound
+      - name: Generate base CycloneDX SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          format: cyclonedx-json
+          output-file: ${{ inputs.sbom_path }}
+
+      - name: Enrich & verify CycloneDX SBOM legal attribution with bomhound
         env:
           SBOM_PATH: ${{ inputs.sbom_path }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          mkdir -p "$(dirname "$SBOM_PATH")"
-          if command -v bomhound >/dev/null 2>&1; then
-            bomhound . --output "$SBOM_PATH"
-          else
-            echo "bomhound CLI not preinstalled in runner; skipping local SBOM generation (install bonjoski/bomhound to enable)."
-            exit 0
-          fi
-
+          bomhound --version
+          printf '%s\n' "$GH_TOKEN" | bomhound -token-stdin -in-place "$SBOM_PATH"
           python3 - "$SBOM_PATH" <<'PY'
           import json, sys
           doc = json.load(open(sys.argv[1], "r", encoding="utf-8"))
           if doc.get("bomFormat") != "CycloneDX" or not doc.get("specVersion"):
-              sys.exit("Invalid CycloneDX SBOM generated by bomhound")
-          print(f"Verified CycloneDX {doc['specVersion']} SBOM ({len(doc.get('components', []))} components)")
+              sys.exit("Invalid CycloneDX SBOM after bomhound enrichment")
+          print(f"✔ Verified bomhound-enriched CycloneDX {doc['specVersion']} SBOM ({len(doc.get('components', []))} components)")
           PY
 
       - name: Emit GitHub SLSA Build Provenance Attestation
@@ -192,20 +204,24 @@ jobs:
             --certificate-identity-regexp "^${REPO_URI}" \
             "$ARTIFACT_PATH"
 
-      - name: Verify provenance with slsa-verifier
-        if: ${{ inputs.enable_slsa_verifier }}
+      - name: Publish GitHub Release with Verified Receipts
+        if: ${{ inputs.publish_github_release && startsWith(github.ref, 'refs/tags/') }}
         env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
           ARTIFACT_PATH: ${{ inputs.artifact_path }}
           PROVENANCE_PATH: ${{ inputs.provenance_path }}
-          SOURCE_URI: "github.com/${{ github.repository }}"
+          SBOM_PATH: ${{ inputs.sbom_path }}
         run: |
           set -euo pipefail
-          if command -v slsa-verifier >/dev/null 2>&1 && [ -f "$PROVENANCE_PATH" ]; then
-            slsa-verifier verify-artifact "$ARTIFACT_PATH" \
-              --provenance-path "$PROVENANCE_PATH" \
-              --source-uri "$SOURCE_URI"
+          ASSETS=("$ARTIFACT_PATH" "${ARTIFACT_PATH}.sha256" "$PROVENANCE_PATH" "$SBOM_PATH")
+          if [ -f "${ARTIFACT_PATH}.cosign.bundle" ]; then
+            ASSETS+=("${ARTIFACT_PATH}.cosign.bundle")
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${ASSETS[@]}" --clobber
           else
-            echo "slsa-verifier or provenance receipt unavailable; skipping optional slsa-verifier step."
+            gh release create "$TAG" "${ASSETS[@]}" --generate-notes --title "$TAG"
           fi
 
       - name: Upload verified release receipts

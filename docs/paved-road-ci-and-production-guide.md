@@ -115,3 +115,13 @@ python3 -m unittest discover -s scripts -p "test_*.py" -v
 # Preview Fix-Forward formatting locally against sample JSON reports
 python3 scripts/format_fixforward_pr.py --aegisbox report.json --max-items 5
 ```
+
+
+---
+
+## Fail-Closed SHA-Pinned Tool Bootstrapping (`RFC-2026-11-22-50`)
+
+Both reusable workflows (`paved-road-pr.yml` and `paved-road-release.yml`) now install verified release binaries via `scripts/install_bonjoski_tool.py` + `scripts/pinned-tools.json` (`argus v0.11.0`, `soulcaster v0.4.0`, `bomhound v0.3.0`, `aegisbox v0.8.0`, `airlock v0.12.0`):
+* Verifies exact 64-hex SHA-256 digests BEFORE extraction (zero unverified `curl | sh`).
+* Rejects tar-slip (`..`), absolute paths, and symlink/hardlink archive members.
+* Fails closed instead of silently skipping when an enabled tool is missing.

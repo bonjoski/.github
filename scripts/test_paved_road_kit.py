@@ -340,5 +340,85 @@ jobs:
         self.assertTrue(any("write-all" in e for e in errs2), f"Expected write-all error, got {errs2}")
 
 
+class TestPinnedToolInstaller_Adversarial(unittest.TestCase):
+    def setUp(self) -> None:
+        import install_bonjoski_tool as inst  # noqa: PLC0415
+
+        self.inst = inst
+
+    @staticmethod
+    def _make_tar_gz(entries: list[tuple[str, bytes, str]]) -> bytes:
+        import io  # noqa: PLC0415
+        import tarfile  # noqa: PLC0415
+
+        buf = io.BytesIO()
+        with tarfile.open(fileobj=buf, mode="w:gz") as tf:
+            for name, payload, kind in entries:
+                ti = tarfile.TarInfo(name=name)
+                if kind == "file":
+                    ti.size = len(payload)
+                    ti.mode = 0o755
+                    tf.addfile(ti, io.BytesIO(payload))
+                elif kind == "symlink":
+                    ti.type = tarfile.SYMTYPE
+                    ti.linkname = payload.decode("utf-8")
+                    tf.addfile(ti)
+        return buf.getvalue()
+
+    def test_rejects_untrusted_url_and_digest_mismatch(self) -> None:
+        with self.assertRaises(self.inst.InstallSecurityError):
+            self.inst.validate_release_url("https://evil.example/argus/releases/download/v1/a.tar.gz", "argus")
+        with self.assertRaises(self.inst.InstallSecurityError):
+            self.inst.validate_release_url("http://github.com/bonjoski/argus/releases/download/v1/a.tar.gz", "argus")
+        with self.assertRaises(self.inst.InstallSecurityError):
+            self.inst.validate_release_url("https://github.com/bonjoski/other/releases/download/v1/a.tar.gz", "argus")
+
+        archive = self._make_tar_gz([("argus", b"#!/bin/sh\necho ok\n", "file")])
+        with tempfile.TemporaryDirectory() as td:
+            with self.assertRaises(self.inst.InstallSecurityError):
+                self.inst.extract_verified_binary(archive, "0" * 64, "argus", Path(td))
+            self.assertEqual(list(Path(td).iterdir()), [])
+
+    def test_rejects_tar_slip_absolute_path_and_symlink_members(self) -> None:
+        import hashlib  # noqa: PLC0415
+
+        hostile_cases = [
+            [("../escape", b"pwn", "file"), ("argus", b"ok", "file")],
+            [("/etc/evil", b"pwn", "file"), ("argus", b"ok", "file")],
+            [("evil_link", b"/etc/passwd", "symlink"), ("argus", b"ok", "file")],
+        ]
+        for entries in hostile_cases:
+            archive = self._make_tar_gz(entries)
+            sha = hashlib.sha256(archive).hexdigest()
+            with tempfile.TemporaryDirectory() as td:
+                with self.assertRaises(self.inst.InstallSecurityError):
+                    self.inst.extract_verified_binary(archive, sha, "argus", Path(td))
+                self.assertEqual(list(Path(td).iterdir()), [])
+
+    def test_extracts_verified_binary_with_dot_slash_prefix(self) -> None:
+        import hashlib  # noqa: PLC0415
+
+        archive = self._make_tar_gz([("./soulcaster", b"ELF_BINARY_PAYLOAD", "file"), ("./README.md", b"docs", "file")])
+        sha = hashlib.sha256(archive).hexdigest()
+        with tempfile.TemporaryDirectory() as td:
+            out = self.inst.extract_verified_binary(archive, sha, "soulcaster", Path(td))
+            self.assertEqual(out.read_bytes(), b"ELF_BINARY_PAYLOAD")
+            self.assertFalse((Path(td) / "README.md").exists())
+
+    def test_pinned_manifest_and_workflows_have_no_silent_skips(self) -> None:
+        manifest = json.loads((SCRIPTS_DIR / "pinned-tools.json").read_text(encoding="utf-8"))
+        for tool in ("argus", "soulcaster", "bomhound", "aegisbox", "airlock"):
+            self.assertIn(tool, manifest["tools"])
+            entry = manifest["tools"][tool]
+            for plat, pdata in entry["platforms"].items():
+                self.inst.validate_release_url(pdata["url"], tool)
+                self.assertRegex(pdata["sha256"], r"^[0-9a-f]{64}$", f"invalid sha for {tool}/{plat}")
+
+        for wf in ("paved-road-pr.yml", "paved-road-release.yml"):
+            text = (REPO_ROOT / ".github" / "workflows" / wf).read_text(encoding="utf-8")
+            self.assertIn("install_bonjoski_tool.py", text, f"{wf} must install SHA-pinned binaries")
+            self.assertNotIn("CLI not preinstalled in runner; skipping", text, f"{wf} must not silently skip tools")
+
+
 if __name__ == "__main__":
     unittest.main()

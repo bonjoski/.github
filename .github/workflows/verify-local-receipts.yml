@@ -36,6 +36,16 @@ on:
         required: false
         type: boolean
         default: false
+      blpr_dir:
+        description: "Optional path to BLPR-v1 DSSE local provenance receipts directory"
+        required: false
+        type: string
+        default: ""
+      require_blpr:
+        description: "Fail workflow if blpr_dir contains zero valid BLPR-v1 receipts"
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   verify-local-receipts:
@@ -141,3 +151,41 @@ jobs:
             exit 1
           fi
           echo "✔ HEAD commit carries a cryptographic signature (status: $sig_status)"
+
+      - name: Verify Local BLPR-v1 DSSE Provenance Receipts
+        if: ${{ inputs.blpr_dir != '' }}
+        env:
+          BLPR_DIR: ${{ inputs.blpr_dir }}
+          REQUIRE_BLPR: ${{ inputs.require_blpr }}
+        run: |
+          set -euo pipefail
+          python3 - "$BLPR_DIR" "$REQUIRE_BLPR" <<'PY'
+          import base64, json, pathlib, sys
+
+          root = pathlib.Path(sys.argv[1])
+          require = sys.argv[2] == "true"
+          if root.is_symlink():
+              sys.exit(f"Refusing symlink BLPR receipt directory: {root}")
+          files = sorted(root.rglob("*.dsse.json")) if root.is_dir() else []
+          if not files:
+              if require:
+                  sys.exit(f"No BLPR-v1 *.dsse.json receipts found under {root}")
+              print(f"No BLPR-v1 receipts found under {root} (optional; skipping).")
+              sys.exit(0)
+
+          for p in files:
+              if p.is_symlink():
+                  sys.exit(f"Refusing symlink receipt file: {p}")
+              env = json.loads(p.read_text(encoding="utf-8"))
+              if env.get("payloadType") != "application/vnd.in-toto+json" or not env.get("signatures"):
+                  sys.exit(f"Invalid or unsigned DSSE envelope: {p}")
+              stmt = json.loads(base64.b64decode(env["payload"]).decode("utf-8"))
+              if stmt.get("_type") != "https://in-toto.io/Statement/v1":
+                  sys.exit(f"Invalid in-toto _type in {p}")
+              if stmt.get("predicateType") != "https://bonjoski.dev/attestation/paved-road/v1":
+                  sys.exit(f"Invalid BLPR-v1 predicateType in {p}")
+              pred = stmt.get("predicate", {})
+              if pred.get("schema_version") != "1.0.0" or not pred.get("receipt_id", "").startswith("rcpt_"):
+                  sys.exit(f"Invalid BLPR-v1 predicate metadata in {p}")
+          print(f"✔ Verified {len(files)} BLPR-v1 DSSE receipt(s) under {root}")
+          PY

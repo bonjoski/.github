@@ -1,0 +1,76 @@
+{
+  "schema_version": "1.0.0",
+  "updated_at": "2026-11-22",
+  "tools": {
+    "argus": {
+      "version": "v0.11.0",
+      "binary": "argus",
+      "platforms": {
+        "linux_amd64": {
+          "url": "https://github.com/bonjoski/argus/releases/download/v0.11.0/argus_0.11.0_linux_amd64.tar.gz",
+          "sha256": "19d1905f46722d2002d8f7cef92e2f7508103096652eeab16a788014c14c1fc9"
+        },
+        "darwin_arm64": {
+          "url": "https://github.com/bonjoski/argus/releases/download/v0.11.0/argus_0.11.0_darwin_arm64.tar.gz",
+          "sha256": "accb0a4051c22267b1836b2a1120ca91c4941a08bae0636637f6405a6a16fcba"
+        }
+      }
+    },
+    "soulcaster": {
+      "version": "v0.4.0",
+      "binary": "soulcaster",
+      "platforms": {
+        "linux_amd64": {
+          "url": "https://github.com/bonjoski/soulcaster/releases/download/v0.4.0/soulcaster_v0.4.0_linux_amd64.tar.gz",
+          "sha256": "347bf15ce402312e1e536a9955d4d6ae65846f6816a4a7a17e9dc888b4424b69"
+        },
+        "darwin_arm64": {
+          "url": "https://github.com/bonjoski/soulcaster/releases/download/v0.4.0/soulcaster_v0.4.0_darwin_arm64.tar.gz",
+          "sha256": "94c8eca61e3978b8f4911e35d8f1f7691b70c03035464ff217a88d262edfc3cf"
+        }
+      }
+    },
+    "bomhound": {
+      "version": "v0.3.0",
+      "binary": "bomhound",
+      "platforms": {
+        "linux_amd64": {
+          "url": "https://github.com/bonjoski/bomhound/releases/download/v0.3.0/bomhound_Linux_x86_64.tar.gz",
+          "sha256": "9bc751a46afc21ee2167d6bd6c9d56864d090c063ab801a15efd38c2583476b9"
+        },
+        "darwin_arm64": {
+          "url": "https://github.com/bonjoski/bomhound/releases/download/v0.3.0/bomhound_Darwin_arm64.tar.gz",
+          "sha256": "69f01bd00080430517c790b26c0a0ead70d5f7587af4415ffeba7836ca7ba866"
+        }
+      }
+    },
+    "aegisbox": {
+      "version": "v0.8.0",
+      "binary": "aegisbox",
+      "platforms": {
+        "linux_amd64": {
+          "url": "https://github.com/bonjoski/aegisbox/releases/download/v0.8.0/aegisbox_0.8.0_linux_amd64.tar.gz",
+          "sha256": "c9705b66ea5deb24a9f01c57386d9b0338e595776ab4c0b85d4a8ccdcb91b847"
+        },
+        "darwin_arm64": {
+          "url": "https://github.com/bonjoski/aegisbox/releases/download/v0.8.0/aegisbox_0.8.0_darwin_arm64.tar.gz",
+          "sha256": "10712247ae82f9dbcebc7fce1b45d04c7192f3d1eab31abc0c389198cb1dfb6d"
+        }
+      }
+    },
+    "airlock": {
+      "version": "v0.12.0",
+      "binary": "airlock",
+      "platforms": {
+        "linux_amd64": {
+          "url": "https://github.com/bonjoski/airlock/releases/download/v0.12.0/airlock_linux_amd64.tar.gz",
+          "sha256": "0a8ecc98a0b26e0f0d529f10d23c8e3b2b0052dbde3c2ac7f53a37d2d3d8ac33"
+        },
+        "darwin_arm64": {
+          "url": "https://github.com/bonjoski/airlock/releases/download/v0.12.0/airlock_darwin_arm64.tar.gz",
+          "sha256": "93ab261bdb6e0760da1497a72a33ac40c0297ecf4791c177ae3ab55323ef139a"
+        }
+      }
+    }
+  }
+}
