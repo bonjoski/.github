@@ -12,6 +12,7 @@ name: Paved-Road Diff-Only PR Gate
 
 permissions:
   contents: read
+  pull-requests: write
 
 on:
   workflow_call:
