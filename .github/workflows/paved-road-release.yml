@@ -1,0 +1,222 @@
+name: Paved-Road Receipt-Based Release
+
+# Reusable open-source Stage 4B receipt-based release workflow.
+# Wraps builds with soulcaster (SLSA v1.0 / in-toto provenance) and bomhound
+# (CycloneDX SBOM with legal copyright attribution) and verifies cryptographic
+# digests with standard open-source cosign / slsa-verifier tools.
+#
+# Safe Harbor Scope: Single-repository open-source release template using
+# standard OSS tools (SLSA, CycloneDX, Sigstore Cosign). Zero SaaS control plane.
+
+permissions:
+  contents: read
+
+on:
+  workflow_call:
+    inputs:
+      build_command:
+        description: "Deterministic build command producing artifact_path"
+        required: false
+        type: string
+        default: "go build -trimpath -o dist/app ./..."
+      artifact_path:
+        description: "Path to the built release binary or archive"
+        required: false
+        type: string
+        default: "dist/app"
+      provenance_path:
+        description: "Output path for SLSA v1.0 / in-toto provenance JSONL receipt"
+        required: false
+        type: string
+        default: "dist/provenance.intoto.jsonl"
+      sbom_path:
+        description: "Output path for CycloneDX SBOM JSON receipt"
+        required: false
+        type: string
+        default: "dist/sbom.cdx.json"
+      go_version:
+        description: "Go toolchain version for build"
+        required: false
+        type: string
+        default: "1.27"
+      verify_git_signature:
+        description: "Fail closed if the release commit lacks a cryptographic Git signature"
+        required: false
+        type: boolean
+        default: true
+      enable_cosign:
+        description: "Install and run standard open-source Sigstore cosign keyless signing/verification"
+        required: false
+        type: boolean
+        default: true
+      enable_slsa_verifier:
+        description: "Run standard open-source slsa-verifier when available on runner"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  release-receipts:
+    name: Build, Attest & Verify Release Receipts
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Checkout release ref
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup Go toolchain
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ inputs.go_version }}
+
+      - name: Verify release commit cryptographic signature
+        if: ${{ inputs.verify_git_signature }}
+        run: |
+          set -euo pipefail
+          sig_status="$(git log -1 --format='%G?')"
+          echo "Release HEAD commit signature status: $sig_status"
+          if [ "$sig_status" = "N" ]; then
+            echo "::error::Release commit is unsigned. Sign locally with 'git commit -S' or 'locksmith git-sign'."
+            exit 1
+          fi
+
+      - name: Build artifact with soulcaster SLSA v1.0 provenance wrapper
+        env:
+          BUILD_COMMAND: ${{ inputs.build_command }}
+          ARTIFACT_PATH: ${{ inputs.artifact_path }}
+          PROVENANCE_PATH: ${{ inputs.provenance_path }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$(dirname "$ARTIFACT_PATH")" "$(dirname "$PROVENANCE_PATH")"
+
+          if command -v soulcaster >/dev/null 2>&1; then
+            soulcaster run --output "$PROVENANCE_PATH" -- bash -euo pipefail -c "$BUILD_COMMAND"
+          else
+            bash -euo pipefail -c "$BUILD_COMMAND"
+          fi
+
+          test -f "$ARTIFACT_PATH"
+          sha256sum "$ARTIFACT_PATH" > "${ARTIFACT_PATH}.sha256"
+          cat "${ARTIFACT_PATH}.sha256"
+
+      - name: Verify SLSA v1.0 / in-toto provenance & TOCTOU digest integrity
+        env:
+          ARTIFACT_PATH: ${{ inputs.artifact_path }}
+          PROVENANCE_PATH: ${{ inputs.provenance_path }}
+        run: |
+          set -euo pipefail
+          # Re-verify artifact digest to detect any post-build tampering.
+          sha256sum -c "${ARTIFACT_PATH}.sha256"
+
+          if [ ! -f "$PROVENANCE_PATH" ]; then
+            echo "soulcaster provenance file not emitted locally; relying on GitHub SLSA attestation step."
+            exit 0
+          fi
+
+          python3 - "$PROVENANCE_PATH" "$ARTIFACT_PATH" <<'PY'
+          import base64, hashlib, json, pathlib, sys
+
+          prov_path, art_path = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
+          actual_sha256 = hashlib.sha256(art_path.read_bytes()).hexdigest()
+          lines = [ln.strip() for ln in prov_path.read_text(encoding="utf-8").splitlines() if ln.strip()]
+          if not lines:
+              sys.exit(f"Empty provenance receipt: {prov_path}")
+
+          matched_digest = False
+          for idx, raw in enumerate(lines, 1):
+              doc = json.loads(raw)
+              stmt = json.loads(base64.b64decode(doc["payload"]).decode("utf-8")) if "payload" in doc else doc
+              if not str(stmt.get("_type", "")).startswith("https://in-toto.io/Statement/"):
+                  sys.exit(f"Line {idx}: invalid in-toto Statement _type")
+              if "slsa.dev/provenance/v1" not in str(stmt.get("predicateType", "")):
+                  sys.exit(f"Line {idx}: expected SLSA v1.0 predicateType")
+              for subj in stmt.get("subject", []):
+                  if subj.get("digest", {}).get("sha256") == actual_sha256:
+                      matched_digest = True
+
+          if not matched_digest:
+              sys.exit(f"Provenance digest mismatch: expected sha256 {actual_sha256}")
+          print(f"Verified SLSA v1.0 provenance and exact SHA-256 digest ({actual_sha256})")
+          PY
+
+      - name: Generate and verify CycloneDX SBOM with bomhound
+        env:
+          SBOM_PATH: ${{ inputs.sbom_path }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$(dirname "$SBOM_PATH")"
+          if command -v bomhound >/dev/null 2>&1; then
+            bomhound . --output "$SBOM_PATH"
+          else
+            echo "bomhound CLI not preinstalled in runner; skipping local SBOM generation (install bonjoski/bomhound to enable)."
+            exit 0
+          fi
+
+          python3 - "$SBOM_PATH" <<'PY'
+          import json, sys
+          doc = json.load(open(sys.argv[1], "r", encoding="utf-8"))
+          if doc.get("bomFormat") != "CycloneDX" or not doc.get("specVersion"):
+              sys.exit("Invalid CycloneDX SBOM generated by bomhound")
+          print(f"Verified CycloneDX {doc['specVersion']} SBOM ({len(doc.get('components', []))} components)")
+          PY
+
+      - name: Emit GitHub SLSA Build Provenance Attestation
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: ${{ inputs.artifact_path }}
+
+      - name: Install Sigstore cosign
+        if: ${{ inputs.enable_cosign }}
+        uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a # v3.8.1
+
+      - name: Sign and verify release artifact bundle with cosign
+        if: ${{ inputs.enable_cosign }}
+        env:
+          ARTIFACT_PATH: ${{ inputs.artifact_path }}
+          REPO_URI: "https://github.com/${{ github.repository }}/"
+        run: |
+          set -euo pipefail
+          cosign sign-blob --yes \
+            --bundle "${ARTIFACT_PATH}.cosign.bundle" \
+            "$ARTIFACT_PATH"
+          cosign verify-blob \
+            --bundle "${ARTIFACT_PATH}.cosign.bundle" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            --certificate-identity-regexp "^${REPO_URI}" \
+            "$ARTIFACT_PATH"
+
+      - name: Verify provenance with slsa-verifier
+        if: ${{ inputs.enable_slsa_verifier }}
+        env:
+          ARTIFACT_PATH: ${{ inputs.artifact_path }}
+          PROVENANCE_PATH: ${{ inputs.provenance_path }}
+          SOURCE_URI: "github.com/${{ github.repository }}"
+        run: |
+          set -euo pipefail
+          if command -v slsa-verifier >/dev/null 2>&1 && [ -f "$PROVENANCE_PATH" ]; then
+            slsa-verifier verify-artifact "$ARTIFACT_PATH" \
+              --provenance-path "$PROVENANCE_PATH" \
+              --source-uri "$SOURCE_URI"
+          else
+            echo "slsa-verifier or provenance receipt unavailable; skipping optional slsa-verifier step."
+          fi
+
+      - name: Upload verified release receipts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: paved-road-release-receipts
+          path: |
+            ${{ inputs.artifact_path }}
+            ${{ inputs.artifact_path }}.sha256
+            ${{ inputs.artifact_path }}.cosign.bundle
+            ${{ inputs.provenance_path }}
+            ${{ inputs.sbom_path }}
+          if-no-files-found: ignore
+          retention-days: 30

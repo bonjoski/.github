@@ -1,0 +1,30 @@
+name: Paved-Road Receipt-Based Release
+
+# Starter workflow template calling the reusable open-source release receipt
+# workflow in bonjoski/.github. Generates and verifies SLSA v1.0 provenance
+# (soulcaster), CycloneDX SBOM (bomhound), and Sigstore cosign signatures.
+
+permissions:
+  contents: read
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  paved-road-release:
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    uses: bonjoski/.github/.github/workflows/paved-road-release.yml@main
+    with:
+      build_command: "go build -trimpath -o dist/app ./..."
+      artifact_path: "dist/app"
+      provenance_path: "dist/provenance.intoto.jsonl"
+      sbom_path: "dist/sbom.cdx.json"
+      verify_git_signature: true
+      enable_cosign: true
+      enable_slsa_verifier: false

@@ -1,0 +1,25 @@
+name: Paved-Road Diff-Only PR Gate
+
+# Starter workflow template calling the reusable open-source diff-only PR gate
+# in bonjoski/.github. Strictly uses on: pull_request (least-privilege read-only
+# permissions on forks; never uses unsafe privileged PR triggers).
+# Downstream repos may pin @main to a specific release commit SHA for extra rigor.
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    branches: [ $default-branch ]
+
+jobs:
+  paved-road-pr:
+    uses: bonjoski/.github/.github/workflows/paved-road-pr.yml@main
+    with:
+      base_ref: origin/$default-branch
+      run_argus: true
+      run_soulcaster: true
+      run_aegisbox: false
+      aegisbox_target: http://127.0.0.1:8080
+      post_pr_comment: false
+      fail_on_proven: true

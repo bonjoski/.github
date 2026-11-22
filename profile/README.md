@@ -1,28 +1,67 @@
-# `bonjoski` — Sovereign AI Agent Security Toolchain
+# `@bonjoski` — Power Steering for Deterministic & AI-Assisted Dev
 
-> **Core Focus:** Local Workstation AI Agent Security, Kernel & MicroVM Sandboxing, Biometric Secrets Management, Supply Chain Provenance
-
----
-
-## ⚖️ Safe Harbor & Compliance Scope
-
-All projects in this portfolio operate strictly within personal developer tooling boundaries:
-- **100% Local Execution:** Utilities run exclusively on individual developer workstations (`localhost`), with zero multi-tenant cloud control planes, zero centralized fleet telemetry, and zero enterprise SaaS tiers.
-- **Thin Wrappers on Public OS Primitives:** Runtimes leverage documented, public OS facilities (Apple Seatbelt, Linux Landlock LSM, macOS Hypervisor, Local Touch ID / TPM2).
-- **Non-Commercial Open Source:** Distributed under permissive open-source licenses (MIT / Apache-2.0) solely for developer productivity and local test ergonomics.
+> **Make the secure path faster than the shortcut.**  
+> 100% local, zero-SaaS developer tools that stop `.env` leaks, AI package hallucinations, and rogue shell commands—with calm ≤3-line Fix-Forward guidance and zero mandatory YAML.
 
 ---
 
-## 🛠️ Toolchain Overview
+## ⚡ 60-Second Quickstart (Zero YAML Required)
 
-- **[Fabrial](https://github.com/bonjoski/fabrial):** Dynamic multi-tier security fabric coordinating local sandboxes and biometric credentials.
-- **[Airlock](https://github.com/bonjoski/airlock):** Sub-15ms zero-trust workstation sandbox for package managers and agents (Seatbelt / Landlock).
-- **[Aegisbox](https://github.com/bonjoski/aegisbox):** MicroVM hardware isolation sandbox for ephemeral test builds (libkrun / macOS Hypervisor).
-- **[Argus](https://github.com/bonjoski/argus):** Zero-SaaS pre-flight dependency validator and package typosquatting scanner.
-- **[Locksmith](https://github.com/bonjoski/locksmith):** Biometric secrets vault and MCP server backed by Touch ID / TPM2.
-- **[Shield](https://github.com/bonjoski/shield):** Local client-side secret redactor and `127.0.0.1:8080` loopback proxy.
-- **[Conjoiner](https://github.com/bonjoski/conjoiner):** Deterministic tool gateway and RFC 9449 DPoP reference library for local agent CLI tools.
-- **[Stormcage](https://github.com/bonjoski/stormcage):** In-process prompt and context sanitization Go library for agent test harnesses.
-- **[Bomhound](https://github.com/bonjoski/bomhound):** CycloneDX legal attribution and copyright notice generator (Apache 2.0 §4c).
-- **[Soulcaster](https://github.com/bonjoski/soulcaster):** Runtime hermetic compiler attestation generating in-toto and SLSA v1.0 provenance.
-- **[Coppermind](https://github.com/bonjoski/coppermind):** Portable cognitive agent brain & local SQLite memory runtime.
+```bash
+# 1. Install the local workstation toolchain
+brew tap bonjoski/tap
+brew install fabrial locksmith argus airlock aegisbox
+
+# 2. Auto-detect your stack & AI SDKs (strictly read-only, 0 YAML written)
+fabrial init
+
+# 3. Move plaintext .env keys into Touch ID / TPM memory & shred .env
+locksmith migrate .env
+
+# 4. Catch AI typosquats before install hooks run
+argus explain opneai --ecosystem npm
+
+# 5. Run tests & AI agents inside fast local confinement
+fabrial run -- npm test
+```
+
+Every tool follows **UB-CLI-v2**:
+* **≤3 calm lines by default:** What paused, a validated copy-pasteable `Fix:` command, and a 1-line `Why:`.
+* **Progressive disclosure (`--why`):** Unlock the threat model, CWE/OWASP mapping, and kernel/crypto details whenever you want them.
+* **Agent-native (`--json`):** Deterministic single-line JSON so Claude Code, Cursor, and Antigravity self-heal in one turn without interactive stalls.
+
+---
+
+## 🗺️ The 4-Stage Developer Lifecycle Map
+
+| Stage | Pain Point Solved | Core Local Tools | Example Command |
+| :--- | :--- | :--- | :--- |
+| **1. 60-Second On-Ramp** | Eliminates config cliffs across Go, Node, Python, Rust, and AI SDK repos (`openai`, `@anthropic-ai/sdk`, `@google/genai`, `@modelcontextprotocol/sdk`). | [**Fabrial**](https://github.com/bonjoski/fabrial) · [**Locksmith**](https://github.com/bonjoski/locksmith) | `fabrial init`<br/>`locksmith migrate .env` |
+| **2. Daily Power-Steering Guardrails** | Stops LLM package hallucinations & slopsquats with calm Levenshtein `Did you mean?` suggestions; redacts secrets on local loopback. | [**Argus**](https://github.com/bonjoski/argus) · [**Shield**](https://github.com/bonjoski/shield) · [**Stormcage**](https://github.com/bonjoski/stormcage) | `argus explain reqeusts --ecosystem pypi`<br/>`argus vet --diff` |
+| **3. Multi-Agent Sandboxing & Secrets** | Keeps AI coding agents out of `~/.ssh`, `~/.aws`, and `.env` across $N=8$ parallel worktrees with <15ms kernel sandboxes, microVMs, and local cognitive memory. | [**Airlock**](https://github.com/bonjoski/airlock) · [**Aegisbox**](https://github.com/bonjoski/aegisbox) · [**Conjoiner**](https://github.com/bonjoski/conjoiner) · [**Coppermind**](https://github.com/bonjoski/coppermind) | `fabrial run -- npm test`<br/>`fabrial session begin --ttl 30m` |
+| **4. Portable Local Cryptographic Receipts** | Generates standard SLSA v1.0 / in-toto provenance, CycloneDX SBOMs, and signed commits locally—verified in CI via open-source GitHub Actions with zero SaaS backend. | [**Soulcaster**](https://github.com/bonjoski/soulcaster) · [**Bomhound**](https://github.com/bonjoski/bomhound) · [**Reusable Workflow**](https://github.com/bonjoski/.github/blob/main/.github/workflows/verify-local-receipts.yml) | `uses: bonjoski/.github/.github/workflows/verify-local-receipts.yml@main` |
+
+---
+
+## 🛠️ Full Local Toolchain Directory
+
+* **[Fabrial](https://github.com/bonjoski/fabrial):** Zero-config stack/AI-SDK detector (`fabrial init`) and local two-tier execution router.
+* **[Locksmith](https://github.com/bonjoski/locksmith):** Hardware-backed biometric vault (`locksmith migrate .env`, Touch ID / TPM2, memory slicing, local MCP).
+* **[Argus](https://github.com/bonjoski/argus):** Pre-flight dependency spellchecker, slopsquatting detector, and lockfile/diff auditor.
+* **[Airlock](https://github.com/bonjoski/airlock):** Sub-15ms Tier 1 kernel sandbox (Apple Seatbelt / Linux Landlock).
+* **[Aegisbox](https://github.com/bonjoski/aegisbox):** Tier 2 local microVM isolation sandbox (Apple Virtualization / Linux KVM / libkrun).
+* **[Shield](https://github.com/bonjoski/shield):** Local client-side secret redactor and `127.0.0.1` loopback proxy.
+* **[Conjoiner](https://github.com/bonjoski/conjoiner):** Deterministic RFC 9449 DPoP capability gateway library for local agent CLI tools.
+* **[Stormcage](https://github.com/bonjoski/stormcage):** In-process prompt and context sanitization Go library for local agent test harnesses.
+* **[Bomhound](https://github.com/bonjoski/bomhound):** CycloneDX SBOM legal attribution and copyright notice generator (Apache 2.0 §4c).
+* **[Soulcaster](https://github.com/bonjoski/soulcaster):** Local hermetic compiler attestation emitting open-standard in-toto and SLSA v1.0 receipts.
+* **[Coppermind](https://github.com/bonjoski/coppermind):** Portable local SQLite cognitive memory & security mentor capsules.
+
+---
+
+## ⚖️ Safe Harbor & Local DevEx Scope
+
+All `@bonjoski` repositories are strictly **100% local, single-developer workstation open-source tools**:
+* **Zero Cloud Control Plane:** Every binary runs locally on `localhost` using public OS primitives (Apple Seatbelt, Linux Landlock, macOS Hypervisor, Touch ID / TPM2).
+* **Zero Enterprise SaaS / Fleet Telemetry:** Stage 4 CI verification uses standard open-source formats (SLSA v1.0, in-toto, CycloneDX) and open-source GitHub Actions—never a centralized compliance server or paid tier.
+* **Permissive Open Source:** Distributed under MIT / Apache-2.0 licenses solely for developer productivity and local security ergonomics.

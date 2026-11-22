@@ -1,0 +1,13 @@
+{
+  "name": "Paved-Road Receipt-Based Release",
+  "description": "Receipt-based release workflow emitting SLSA v1.0 provenance (soulcaster), CycloneDX SBOM (bomhound), and Sigstore cosign verification.",
+  "iconName": "octicon verified",
+  "categories": [
+    "Security",
+    "Deployment",
+    "Go",
+    "Node.js",
+    "Python",
+    "Rust"
+  ]
+}

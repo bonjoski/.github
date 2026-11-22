@@ -1,0 +1,12 @@
+{
+  "name": "Paved-Road Diff-Only PR Gate",
+  "description": "Fast (<30s) diff-only proven PR gate orchestrating argus, soulcaster, and optional local aegisbox AI-safety checks with zero-noise Fix-Forward output.",
+  "iconName": "octicon shield-check",
+  "categories": [
+    "Security",
+    "Go",
+    "Node.js",
+    "Python",
+    "Rust"
+  ]
+}

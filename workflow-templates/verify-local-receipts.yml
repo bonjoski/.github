@@ -1,0 +1,23 @@
+name: Verify Local Receipts
+
+# Starter workflow template calling the reusable open-source verifier in bonjoski/.github.
+# Verifies local SLSA v1.0 / in-toto provenance receipts and CycloneDX SBOMs with zero SaaS.
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    branches: [ $default-branch ]
+  push:
+    branches: [ $default-branch ]
+
+jobs:
+  verify-receipts:
+    uses: bonjoski/.github/.github/workflows/verify-local-receipts.yml@main
+    with:
+      provenance_path: receipts/provenance.intoto.jsonl
+      sbom_path: receipts/sbom.cdx.json
+      require_provenance: false
+      require_sbom: false
+      verify_git_signature: false

@@ -1,0 +1,12 @@
+{
+  "name": "Verify Local Cryptographic Receipts",
+  "description": "Verify portable local SLSA v1.0 / in-toto provenance receipts and CycloneDX SBOMs using standard open-source tools (zero SaaS).",
+  "iconName": "octicon shield-check",
+  "categories": [
+    "Security",
+    "Go",
+    "Node.js",
+    "Python",
+    "Rust"
+  ]
+}

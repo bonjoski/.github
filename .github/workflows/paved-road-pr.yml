@@ -1,0 +1,204 @@
+name: Paved-Road Diff-Only PR Gate
+
+# Reusable open-source Stage 4A PR gate (<30s diff-only proven checks).
+# Runs argus (diff-only slopsquat), soulcaster (diff-only AST verification),
+# and optional aegisbox (local loopback AI-safety abuse-case suite), then formats
+# strictly proven findings via scripts/format_fixforward_pr.py.
+#
+# Safe Harbor Scope: Single-repository open-source workflow template invoking
+# local single-binary CLIs inside the repository's own runner. Zero SaaS,
+# zero centralized control plane, zero fleet telemetry.
+
+permissions:
+  contents: read
+
+on:
+  workflow_call:
+    inputs:
+      base_ref:
+        description: "Base git ref for diff-only checks (e.g. origin/main)"
+        required: false
+        type: string
+        default: "origin/main"
+      run_argus:
+        description: "Run argus vet --diff --json on newly added dependencies"
+        required: false
+        type: boolean
+        default: true
+      run_soulcaster:
+        description: "Run soulcaster verify-patch --json on changed lines only"
+        required: false
+        type: boolean
+        default: true
+      run_aegisbox:
+        description: "Run aegisbox test --ai-safety --allow-degraded-local --json against localhost target"
+        required: false
+        type: boolean
+        default: false
+      aegisbox_target:
+        description: "Strictly local loopback target URL for aegisbox AI-safety checks"
+        required: false
+        type: string
+        default: "http://127.0.0.1:8080"
+      post_pr_comment:
+        description: "Post sanitized Fix-Forward comment to PR in an isolated comment job"
+        required: false
+        type: boolean
+        default: false
+      pr_number:
+        description: "Pull request number (required only when post_pr_comment is true)"
+        required: false
+        type: string
+        default: ""
+      fail_on_proven:
+        description: "Fail the PR check if any proven finding is detected"
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  diff-gate:
+    name: Diff-Only Proven Checks (<30s)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      has_proven_findings: ${{ steps.format.outputs.has_proven_findings }}
+      comment_b64: ${{ steps.format.outputs.comment_b64 }}
+    steps:
+      - name: Checkout repository diff context
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Checkout Fix-Forward formatter script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: bonjoski/.github
+          path: .paved-road-kit
+          sparse-checkout: scripts/format_fixforward_pr.py
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Prepare report workspace
+        run: |
+          set -euo pipefail
+          mkdir -p .paved-road
+          echo '{"findings":[]}' > .paved-road/argus.json
+          echo '{"findings":[]}' > .paved-road/soulcaster.json
+          echo '{"findings":[]}' > .paved-road/aegisbox.json
+
+      - name: Run argus diff-only slopsquat gate
+        if: ${{ inputs.run_argus }}
+        run: |
+          set -euo pipefail
+          if command -v argus >/dev/null 2>&1; then
+            argus vet --diff --json > .paved-road/argus.json || true
+          else
+            echo "argus CLI not preinstalled in runner; skipping local diff scan (install bonjoski/argus to enable)."
+          fi
+
+      - name: Run soulcaster diff-only AST patch gate
+        if: ${{ inputs.run_soulcaster }}
+        env:
+          BASE_REF: ${{ inputs.base_ref }}
+        run: |
+          set -euo pipefail
+          if command -v soulcaster >/dev/null 2>&1; then
+            soulcaster verify-patch -base "$BASE_REF" --json > .paved-road/soulcaster.json || true
+          else
+            echo "soulcaster CLI not preinstalled in runner; skipping differential AST check (install bonjoski/soulcaster to enable)."
+          fi
+
+      - name: Run aegisbox local AI-safety abuse-case suite
+        if: ${{ inputs.run_aegisbox }}
+        env:
+          AEGISBOX_TARGET: ${{ inputs.aegisbox_target }}
+        run: |
+          set -euo pipefail
+          case "$AEGISBOX_TARGET" in
+            http://127.0.0.1*|http://localhost*|http://\[::1\]*)
+              ;;
+            *)
+              echo "::error::Refusing non-loopback aegisbox_target (local loopback only)."
+              exit 1
+              ;;
+          esac
+          if command -v aegisbox >/dev/null 2>&1; then
+            aegisbox test --ai-safety --allow-degraded-local --target "$AEGISBOX_TARGET" --json > .paved-road/aegisbox.json || true
+          else
+            echo "aegisbox CLI not preinstalled in runner; skipping local AI-safety probes (install bonjoski/aegisbox to enable)."
+          fi
+
+      - name: Format zero-noise Fix-Forward summary
+        id: format
+        env:
+          RUN_URL: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          FAIL_ON_PROVEN: ${{ inputs.fail_on_proven }}
+        run: |
+          set -euo pipefail
+          set +e
+          python3 .paved-road-kit/scripts/format_fixforward_pr.py \
+            --argus .paved-road/argus.json \
+            --soulcaster .paved-road/soulcaster.json \
+            --aegisbox .paved-road/aegisbox.json \
+            --max-items 5 \
+            --run-url "$RUN_URL" \
+            --output .paved-road/pr-comment.md \
+            --fail-on-proven
+          rc=$?
+          set -e
+
+          cat .paved-road/pr-comment.md >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$rc" -ne 0 ]; then
+            echo "has_proven_findings=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_proven_findings=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          COMMENT_B64="$(python3 -c 'import base64, pathlib; data = pathlib.Path(".paved-road/pr-comment.md").read_bytes()[:8192]; print(base64.b64encode(data).decode("ascii"))')"
+          echo "comment_b64=$COMMENT_B64" >> "$GITHUB_OUTPUT"
+
+          if [ "$rc" -ne 0 ] && [ "$FAIL_ON_PROVEN" = "true" ]; then
+            echo "::error::Paved-Road diff gate detected proven findings. Review the Fix-Forward summary above."
+            exit 1
+          fi
+
+      - name: Upload sanitized Fix-Forward report artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: paved-road-fixforward-report
+          path: .paved-road/pr-comment.md
+          retention-days: 7
+
+  post-fixforward-comment:
+    name: Post Sanitized Fix-Forward PR Comment
+    needs: [diff-gate]
+    if: ${{ always() && inputs.post_pr_comment && inputs.pr_number != '' && needs.diff-gate.outputs.has_proven_findings == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      # Isolated job: never checks out untrusted PR code; posts only the already-sanitized,
+      # secret-scrubbed, <=5-item Fix-Forward comment produced by diff-gate.
+      - name: Post sanitized Fix-Forward comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          COMMENT_B64: ${{ needs.diff-gate.outputs.comment_b64 }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64, os, pathlib, sys
+          raw = base64.b64decode(os.environ["COMMENT_B64"].encode("ascii"))
+          if len(raw) > 8192:
+              sys.exit("Refusing oversized PR comment payload (>8 KiB)")
+          pathlib.Path("pr-comment.md").write_bytes(raw)
+          PY
+          gh pr comment "$PR_NUMBER" --body-file pr-comment.md
