@@ -57,6 +57,11 @@ on:
         required: false
         type: boolean
         default: true
+      require_license:
+        description: "Fail closed if root LICENSE file is missing or empty"
+        required: false
+        type: boolean
+        default: true
 
 jobs:
   diff-gate:
@@ -74,6 +79,15 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Verify root LICENSE file (fail-closed)
+        if: ${{ inputs.require_license }}
+        run: |
+          set -euo pipefail
+          if [ ! -s LICENSE ] || [ -L LICENSE ]; then
+            echo "::error::Missing, empty, or symlinked root LICENSE file. Add a non-empty regular LICENSE file at repository root."
+            exit 1
+          fi
 
       - name: Checkout Paved-Road kit scripts & pinned manifest
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
