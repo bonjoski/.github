@@ -1,7 +1,7 @@
 # Sanitized Post-Mortem Distillation (`lesson-to-capsule`)
 
 > **Purpose:** Convert any staging or production near-miss into **1 reusable `coppermind` Mentor/PO Card** and **1 deterministic `aegisbox` regression probe**—closing the Production-to-Ideation flywheel in under 10 minutes.  
-> **Strict Privacy Rule:** Zero customer PII, zero proprietary data, zero internal hostnames, and zero secrets/tokens. Run `coppermind capsule export --mentor` (with `shield` redaction) before sharing.
+> **Strict Privacy Rule:** Zero customer PII, zero proprietary data, zero internal hostnames, and zero secrets/tokens. Run `coppermind capsule export --mentor` (with local secret/PII redaction) before sharing.
 
 ---
 
@@ -10,7 +10,7 @@
 1. **Incident Class (generic slug):** `e.g. negative-amount-refund-bypass`
 2. **What Broke (1 generic sentence, zero proprietary info):** `An LLM tool handler checked amount <= 5000 but omitted amount >= 0, allowing a prompt-injected negative refund.`
 3. **Deterministic Engineering Analogy (1 line):** `Like missing row-level WHERE tenant_id = ? in SQL or unsigned bounds checks in Go.`
-4. **Affected Boundary:** `Prompt Fence (stormcage) | Tool Policy (conjoiner) | Diff Gate (argus/soulcaster) | Release Receipt`
+4. **Affected Boundary:** `Prompt Delimiter Fence | Tool Policy (conjoiner) | Diff Gate (argus/soulcaster) | Release Receipt`
 5. **1-Line Fix-Forward Pattern:** `Reject req.AmountCents < 0 fail-closed inside BlastRadiusPolicy.Authorize before calling the refund handler.`
 6. **Abuse-Case Acceptance Criterion (`Given / When / Then`):**
    - **Given** a caller with `orders:refund` scope and `MaxMutationCents = 5000`

@@ -38,7 +38,7 @@ Every tool follows **UB-CLI-v2**, **UB-MCP-v1**, and **BLPR-v1**:
 | Stage | Pain Point Solved | Core Local Tools | Example Command |
 | :--- | :--- | :--- | :--- |
 | **1. 60-Second On-Ramp** | Eliminates config cliffs across Go, Node, Python, Rust, and AI SDK repos (`openai`, `@anthropic-ai/sdk`, `@google/genai`, `@modelcontextprotocol/sdk`). | [**Fabrial**](https://github.com/bonjoski/fabrial) · [**Locksmith**](https://github.com/bonjoski/locksmith) | `fabrial init`<br/>`locksmith migrate .env` |
-| **2. Daily Power-Steering Guardrails** | Stops LLM package hallucinations & slopsquats with calm Levenshtein `Did you mean?` suggestions; redacts secrets on local loopback. | [**Argus**](https://github.com/bonjoski/argus) · [**Shield**](https://github.com/bonjoski/shield) · [**Stormcage**](https://github.com/bonjoski/stormcage) | `argus explain reqeusts --ecosystem pypi`<br/>`argus vet --diff` |
+| **2. Daily Power-Steering Guardrails** | Stops LLM package hallucinations & slopsquats with calm Levenshtein `Did you mean?` suggestions and audits lockfiles/diffs pre-flight. | [**Argus**](https://github.com/bonjoski/argus) | `argus explain reqeusts --ecosystem pypi`<br/>`argus vet --diff` |
 | **3. Multi-Agent Sandboxing & Secrets** | Keeps AI coding agents out of `~/.ssh`, `~/.aws`, and `.env` across $N=8$ parallel worktrees with <15ms kernel sandboxes, microVMs, and local AI memory. | [**Airlock**](https://github.com/bonjoski/airlock) · [**Aegisbox**](https://github.com/bonjoski/aegisbox) · [**Conjoiner**](https://github.com/bonjoski/conjoiner) · [**Coppermind**](https://github.com/bonjoski/coppermind) | `fabrial run -- npm test`<br/>`fabrial session begin --ttl 30m` |
 | **4. Portable Local Cryptographic Receipts** | Generates standard SLSA v1.0 / in-toto provenance, CycloneDX SBOMs, and signed commits locally—verified in CI via open-source GitHub Actions with zero SaaS backend. | [**Soulcaster**](https://github.com/bonjoski/soulcaster) · [**Bomhound**](https://github.com/bonjoski/bomhound) · [**Reusable Workflow**](https://github.com/bonjoski/.github/blob/main/.github/workflows/verify-local-receipts.yml) | `uses: bonjoski/.github/.github/workflows/verify-local-receipts.yml@main` |
 
@@ -51,9 +51,7 @@ Every tool follows **UB-CLI-v2**, **UB-MCP-v1**, and **BLPR-v1**:
 * **[Argus](https://github.com/bonjoski/argus):** Pre-flight dependency spellchecker, slopsquatting detector, and lockfile/diff auditor.
 * **[Airlock](https://github.com/bonjoski/airlock):** Sub-15ms Tier 1 kernel sandbox (Apple Seatbelt / Linux Landlock).
 * **[Aegisbox](https://github.com/bonjoski/aegisbox):** Tier 2 local microVM isolation sandbox (Apple Virtualization / Linux KVM / libkrun).
-* **[Shield](https://github.com/bonjoski/shield):** Local client-side secret redactor and `127.0.0.1` loopback proxy.
 * **[Conjoiner](https://github.com/bonjoski/conjoiner):** Deterministic RFC 9449 DPoP capability gateway library for local agent CLI tools.
-* **[Stormcage](https://github.com/bonjoski/stormcage):** In-process prompt and context sanitization Go library for local agent test harnesses.
 * **[Bomhound](https://github.com/bonjoski/bomhound):** CycloneDX SBOM legal attribution and copyright notice generator (Apache 2.0 §4c).
 * **[Soulcaster](https://github.com/bonjoski/soulcaster):** Local hermetic compiler attestation emitting open-standard in-toto and SLSA v1.0 receipts.
 * **[Coppermind](https://github.com/bonjoski/coppermind):** Local-first AI memory system that gives coding agents persistent, searchable memory across sessions.

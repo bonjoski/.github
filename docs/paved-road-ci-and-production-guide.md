@@ -15,7 +15,7 @@ flowchart LR
     PR["PR Opened"] --> Gate["Stage 4A: paved-road-pr.yml<br/>(<30s diff-only proven checks)"]
     Gate --> Fix["Zero-Noise Fix-Forward Comment<br/>(<=5 proven hits, HTML/secret scrubbed)"]
     Fix -->|Merged| Rel["Stage 4B: paved-road-release.yml<br/>(soulcaster SLSA + bomhound SBOM + cosign)"]
-    Rel --> Prod["Stage 5A: In-App Blast-Radius Guard<br/>(stormcage fence + conjoiner policy)"]
+    Rel --> Prod["Stage 5A: In-App Blast-Radius Guard<br/>(delimiter fence + conjoiner policy)"]
     Prod -.->|Near-Miss| Lesson["Stage 5B: lesson-to-capsule.md<br/>(+1 Coppermind Card +1 Aegisbox Probe)"]
     Lesson -.->|Feeds Next PR| Gate
 ```
@@ -86,7 +86,7 @@ Drop [`workflow-templates/paved-road-release.yml`](../workflow-templates/paved-r
 
 Before shipping any LLM tool-calling or RAG handler, embed all four deterministic controls **in-process outside the LLM loop** (`< 0.5ms` overhead, zero proxy hops):
 
-1. **XML Delimiter Fencing (`stormcage`):** Wrap untrusted user/RAG text with `sanitize.FenceUntrustedArtifact()`.
+1. **XML Delimiter Fencing:** Wrap untrusted user/RAG text in strict XML boundary delimiters (e.g. `<untrusted_artifact>...</untrusted_artifact>` with tag escaping/sanitization, or an optional local sanitization helper) so untrusted data is structurally isolated from instructions.
 2. **Deterministic Tool Allowlist & Monetary/Turn Ceilings (`conjoiner/pkg/aiboundary`):** Enforce `BlastRadiusPolicy.Authorize(ctx, req)` before every tool handler.
 3. **Strict JSON Schema Parsing (`ValidateStrictJSON`):** Use `DisallowUnknownFields()` and reject trailing concatenated JSON objects.
 4. **1-Flip Read-Only Kill-Switch (`atomic.Bool`):** Pause mutating AI tools instantaneously during incidents without taking down read-only tools or deterministic routes.
